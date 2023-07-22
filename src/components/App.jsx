@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import Searchbar from './Searchbar';
 import ImageGallery from "./ImageGallery"
 import Button from './Button';
@@ -7,75 +7,73 @@ import Loader from './Loader/Loader';
 import Modal from './Modal';
 import css from "./App.module.css";
 
+function App(){
+  const [value, setValue] = useState(null);
+  const [page, setPage] = useState(1);
+  const [gallery, setGallery] = useState([]);
+  const [status, setStatus] = useState('deny');
+  const [showModal, setShowModal] = useState(false);
+  const [showLoadMore, setShowLoadMore] = useState(false);
+  const [largeImage, setLargeImage] = useState('');
 
-class App extends Component {
-  state = {
-    value: null,
-    page: 1,
-    gallery: [],
-    status: 'allow',
-    showModal: false,
-    largeImage:"",
-  };
+  useEffect(() => {
+      if (status === 'allow') {
+        setStatus('loading');
+        SearchApi(value, page)
+          .then(response => response.json())
+          .then(ar =>
+            setGallery(
+              gallery => [...gallery, ...ar.hits],
+              setStatus('deny'),
+              setShowLoadMore(true),
+              
+              alertEmptyArray(ar.hits.length)
+            )
+          );
+      }
+  }, [page, status, value])
+  
 
-  componentDidUpdate(prevProps, prevState) {
-    const { status, value, page } = this.state;
-
-    if (status === 'allow') {
-      this.setState({ status: 'loading' });
-      SearchApi(value, page)
-        .then(response => response.json())
-        .then(ar =>
-          this.setState(
-            ({ gallery }) => ({
-              gallery: [...gallery, ...ar.hits],
-              status: 'deny',
-            }),
-            this.alertEmptyArray(ar.hits.length)
-          )
-        );
-    }
-  }
-
-  alertEmptyArray = (value) => {
+  const alertEmptyArray = value => {
     if (!value) {
-      return alert ("Ooops there is no images, try another search!")
+      setShowLoadMore(false)
+      alert('Ooops there is no images, try another search!');
+      return;
     }
-  }
-
-  openModal = (img) => {
-    this.setState({ showModal: true });
-    this.setState({largeImage:img})
   };
 
-  closeModal = () => {
-    this.setState({ showModal:false });
-  }
+  const openModal = img => {
+    setShowModal(true);
+    setLargeImage(img);
+  };
 
-  onSubmit = name => {
-    if (name === this.state.value) {
+  const closeModal = () => {
+    setShowModal(false);
+  };
+
+  const onSubmit = name => {
+    if (name === value) {
       return alert('Try another input value!');
     }
-    this.setState({ value: name, page: 1, gallery: [], status: 'allow' });
+    setValue(name);
+    setPage(1);
+    setGallery([]);
+    setStatus('allow');
   };
 
-  onMore = () => {
-    this.setState(prevSatate => ({
-      page: prevSatate.page + 1,
-      status: 'allow',
-    }));
+  const onMore = () => {
+    setPage(prevPage => prevPage + 1 )
+    setStatus('allow');
   };
 
-  render() {
-    const { gallery, status, showModal } = this.state;
     return (
       <section>
         <div className={css.App}>
-          <Searchbar onChange={this.onSubmit} />
-          <ImageGallery gallery={gallery} openModal={this.openModal} />
-          {gallery.length > 0 && (
+          <Searchbar onChange={onSubmit} />
+          <ImageGallery gallery={gallery} openModal={openModal} />
+          {showLoadMore && (
             <div className={css.buttonContainer}>
-              <Button onMore={this.onMore} />
+              <Button onMore={onMore} />
             </div>
           )}
           {status === 'loading' && (
@@ -84,10 +82,10 @@ class App extends Component {
             </div>
           )}
           {showModal && (
-            <Modal onClose={this.closeModal}>
+            <Modal onClose={closeModal}>
               <img
                 className={css.img}
-                src={this.state.largeImage}
+                src={largeImage}
                 width="900"
                 alt=""
               />
@@ -97,7 +95,5 @@ class App extends Component {
       </section>
     );
   }
-}
-
 
 export default App;
